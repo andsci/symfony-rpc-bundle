@@ -1,0 +1,4 @@
+services:
+    RpcBundle\Service\AnnotationRpcActionCaller:
+        arguments:
+            - '@service_container'

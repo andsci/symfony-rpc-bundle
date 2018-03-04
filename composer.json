@@ -1,0 +1,17 @@
+{
+  "name": "andsci/symfony-rpc-bundle",
+  "description": "Easy rpc management.",
+  "keywords": [
+    "rpc"
+  ],
+  "type": "symfony-bundle",
+  "require": {
+    "php": "^7.2",
+    "doctrine/orm": "^2.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "RpcBundle\\": ""
+    }
+  }
+}
