@@ -54,7 +54,7 @@ class RpcResponseToMessageTransformer
      */
     public function transform(RpcResponse $response) : string
     {
-        json_encode([
+        return json_encode([
             'body' => json_encode(
                 [
                     'status' => $response->getStatus(),
