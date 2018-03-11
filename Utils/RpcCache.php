@@ -17,6 +17,11 @@ class RpcCache
      */
     public static function getCacheKey(string $server, RpcRequest $request) : string
     {
-        return $server.':'.$request->getAction().':'.json_encode($request->getData());
+        $dataCacheKey = '';
+        foreach ($request->getData() as $key => $item) {
+            $dataCacheKey = $dataCacheKey.'|'.$key.'-'.$item;
+        }
+
+        return $server.'|'.$request->getAction().'|'.$dataCacheKey;
     }
 }
