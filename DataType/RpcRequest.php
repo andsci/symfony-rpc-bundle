@@ -2,6 +2,8 @@
 
 namespace RpcBundle\DataType;
 
+use RpcBundle\Exception\RpcRequestDataMissingException;
+
 /**
  * Class RpcRequest.
  */
@@ -20,7 +22,7 @@ class RpcRequest
      * RpcRequest constructor.
      *
      * @param string $action
-     * @param array $data
+     * @param array  $data
      */
     public function __construct(string $action, array $data = [])
     {
@@ -54,6 +56,23 @@ class RpcRequest
     public function getData() : array
     {
         return $this->data;
+    }
+
+    /**
+     * @param string $key
+     *
+     * @return mixed
+     *
+     * @throws RpcRequestDataMissingException
+     */
+    public function getDataItem(string $key)
+    {
+        if (null !== $key) {
+            if (array_key_exists($key, $this->data)) {
+                return $this->data[$key];
+            }
+            throw RpcRequestDataMissingException::createForKey($key);
+        }
     }
 
     /**
