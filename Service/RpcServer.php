@@ -2,131 +2,78 @@
 
 namespace RpcBundle\Service;
 
-use OldSound\RabbitMqBundle\RabbitMq\RpcClient;
-use RpcBundle\Constant\RpcClientEvents;
+use Doctrine\ORM\EntityManagerInterface;
+use OldSound\RabbitMqBundle\RabbitMq\ConsumerInterface;
+use PhpAmqpLib\Message\AMQPMessage;
+use Psr\Log\LoggerInterface;
+use RpcBundle\Constant\RpcResponseCode;
 use RpcBundle\DataType\RpcRequest;
 use RpcBundle\DataType\RpcResponse;
-use RpcBundle\Event\RpcClientCallEvent;
-use RpcBundle\Utils\RpcCache;
-use Symfony\Component\Cache\Adapter\AdapterInterface;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use RpcBundle\Exception\RpcActionNotFoundException;
 
 /**
  * Class RpcServer.
  */
-class RpcServer
+class RpcServer implements ConsumerInterface
 {
     /**
-     * @var AdapterInterface
+     * @var RpcActionCallerInterface
      */
-    private $cache;
+    private $actionCaller;
     /**
-     * @var string
+     * @var EntityManagerInterface
      */
-    private $correlationId;
+    private $em;
     /**
-     * @var EventDispatcherInterface
+     * @var LoggerInterface
      */
-    private $dispatcher;
+    private $logger;
     /**
      * @var RpcResponseToMessageTransformer
      */
     private $responseTransformer;
-    /**
-     * @var RpcClient
-     */
-    private $rpcClient;
-    /**
-     * @var string
-     */
-    private $server;
 
     /**
-     * ProductClient constructor.
+     * RpcServer constructor.
      *
-     * @param RpcClient                       $rpcClient
-     * @param string                          $server
+     * @param LoggerInterface                 $logger
+     * @param RpcActionCallerInterface        $actionCaller
      * @param RpcResponseToMessageTransformer $responseTransformer
-     * @param EventDispatcherInterface        $dispatcher
+     * @param EntityManagerInterface          $em
      */
-    public function __construct(RpcClient $rpcClient, string $server, RpcResponseToMessageTransformer $responseTransformer, EventDispatcherInterface $dispatcher, AdapterInterface $cache)
+    public function __construct(LoggerInterface $logger, RpcActionCallerInterface $actionCaller, RpcResponseToMessageTransformer $responseTransformer, EntityManagerInterface $em)
     {
-        $this->rpcClient = $rpcClient;
-        $this->server = $server;
-        $this->correlationId = $this->server.'_'.crc32(microtime());
+        $this->logger = $logger;
+        $this->actionCaller = $actionCaller;
         $this->responseTransformer = $responseTransformer;
-        $this->cache = $cache;
-        $this->dispatcher = $dispatcher;
+        $this->em = $em;
     }
 
     /**
-     * @param RpcRequest $request
-     * @param bool       $useCache
-     * @param int        $cacheTTL
-     *
-     * @return RpcResponse
-     */
-    public function call(RpcRequest $request, bool $useCache = false, int $cacheTTL = 60) : RpcResponse
-    {
-        try {
-            $responseString = $this->getResponse($request, $useCache, $cacheTTL);
-            $response = $this->responseTransformer->reverseTransform($responseString);
-
-            $eventName = RpcClientEvents::POST_CALL.'.'.$request->getAction();
-            $this->dispatcher->dispatch($eventName, new RpcClientCallEvent($this->server, $request, $response));
-
-            return $response;
-        } catch (\Exception $exception) {
-            return RpcResponse::createFailure([$exception->getMessage()]);
-        }
-    }
-
-    /**
-     * @param RpcRequest $request
-     *
-     * @return mixed
-     *
-     * @throws \Exception
-     */
-    private function doCall(RpcRequest $request)
-    {
-        $this->rpcClient->addRequest(serialize($request), $this->server, $this->correlationId, null, 60);
-        $reply = $this->rpcClient->getReplies();
-        if (!isset($reply[$this->correlationId])) {
-            throw new \Exception(
-                sprintf('RPC call response does not contain correlation id [%].', $this->correlationId)
-            );
-        }
-
-        return $reply[$this->correlationId];
-    }
-
-    /**
-     * @param RpcRequest $request
-     * @param bool       $useCache
-     * @param int        $cacheTTL
+     * @param AMQPMessage $message
      *
      * @return string
-     *
-     * @throws \Exception
      */
-    private function getResponse(RpcRequest $request, bool $useCache = false, int $cacheTTL = 60) : string
+    public function execute(AMQPMessage $message) : string
     {
-        if ($useCache) {
-            $cacheKey = RpcCache::getCacheKey($this->server, $request);
-            $cacheItem = $this->cache->getItem($cacheKey);
-            if ($cacheItem->isHit()) {
-                return $cacheItem->get();
-            }
-            $responseString = $this->doCall($request);
-            $cacheItem
-                ->set($responseString)
-                ->expiresAfter($cacheTTL);
-            $this->cache->save($cacheItem);
-
-            return $responseString;
+        $this->logger->info(json_encode($message));
+        $request = unserialize($message->body);
+        if (!$request instanceof RpcRequest) {
+            throw new \InvalidArgumentException(sprintf('Message should be an instance of %s', RpcRequest::class));
+        }
+        $this->em->clear();
+        try {
+            $response = $this->actionCaller->call($request->getAction(), self::class, $request->getData());
+        } catch (RpcActionNotFoundException $exception) {
+            $response = (new RpcResponse())
+                ->setStatus(RpcResponseCode::NOT_FOUND)
+                ->addError(sprintf('Action "%s" was not found.', $request->getAction()));
+        } catch (\Exception $exception) {
+            $response = (new RpcResponse())
+                ->setStatus(RpcResponseCode::EXCEPTION)
+                ->addError($exception->getMessage());
         }
 
-        return $this->doCall($request);
+        return $this->responseTransformer->transform($response);
     }
 }
