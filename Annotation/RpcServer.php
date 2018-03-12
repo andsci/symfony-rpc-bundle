@@ -9,6 +9,8 @@ namespace RpcBundle\Annotation;
  */
 class RpcServer
 {
-    /** @var string */
+    /**
+     * @var string
+     */
     public $service;
 }

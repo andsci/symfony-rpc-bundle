@@ -10,6 +10,8 @@ namespace RpcBundle\Annotation;
  */
 class RpcAction
 {
-    /** @var string */
+    /**
+     * @var string
+     */
     public $name;
 }
