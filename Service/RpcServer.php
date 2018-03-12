@@ -14,7 +14,7 @@ use RpcBundle\Exception\RpcActionNotFoundException;
 /**
  * Class RpcServer.
  */
-class RpcServer implements ConsumerInterface
+abstract class RpcServer implements ConsumerInterface
 {
     /**
      * @var RpcActionCallerInterface
@@ -63,7 +63,7 @@ class RpcServer implements ConsumerInterface
         }
         $this->em->clear();
         try {
-            $response = $this->actionCaller->call($request->getAction(), self::class, $request->getData());
+            $response = $this->actionCaller->call($request->getAction(), static::class, $request->getData());
         } catch (RpcActionNotFoundException $exception) {
             $response = (new RpcResponse())
                 ->setStatus(RpcResponseCode::NOT_FOUND)
