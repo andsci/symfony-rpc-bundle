@@ -12,9 +12,9 @@ use RpcBundle\DataType\RpcResponse;
 use RpcBundle\Exception\RpcActionNotFoundException;
 
 /**
- * Class RpcServer.
+ * Class AbstractRpcServer.
  */
-abstract class RpcServer implements ConsumerInterface
+abstract class AbstractRpcServer implements ConsumerInterface
 {
     /**
      * @var RpcActionCallerInterface
@@ -34,7 +34,7 @@ abstract class RpcServer implements ConsumerInterface
     private $responseTransformer;
 
     /**
-     * RpcServer constructor.
+     * AbstractRpcServer constructor.
      *
      * @param LoggerInterface                 $logger
      * @param RpcActionCallerInterface        $actionCaller
