@@ -1,9 +1,9 @@
 # Symfony rpc bundle
 
 
-### Usage
+## Usage
 
-#### Create server
+### Create server
 
 Create server class
 
@@ -48,7 +48,7 @@ class ProductController
 ```
 
 
-#### Create server client
+### Create server client
 
 Create client service
 
@@ -74,7 +74,6 @@ use RpcBundle\Service\RpcClientInterface;
  */
 class ProductService 
 {
-    
     /**
      * @var RpcClientInterface
      */
