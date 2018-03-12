@@ -1,22 +1,39 @@
 # Symfony rpc bundle
 
-### Controller definition
 
-Defining controller server
+### Usage
+
+#### Create server
+
+Create server class
 
 ```php
-    /**
-     * Class ProductController.
-     * @RpcServer(service="App\Service\Server\ProductServer")
-     */
-    class ProductController 
-    {
-    }
+<?php
+
+use RpcBundle\Service\AbstractRpcServer;
+
+/**
+ * Class ProductServer.
+ */
+class ProductServer extends AbstractRpcServer
+{
+}
 ```
-
-Defining controller actions
+Create controller
 
 ```php
+<?php
+
+use RpcBundle\Annotation\RpcAction;
+use RpcBundle\Annotation\RpcServer;
+use RpcBundle\DataType\RpcResponse;
+
+/**
+ * Class ProductController.
+ * @RpcServer(service="App\Service\Server\ProductServer")
+ */
+class ProductController 
+{
     /**
      * @RpcAction(name="create-product")
      * @param array $data
@@ -25,11 +42,54 @@ Defining controller actions
      */
     public function createProduct(array $data) : RpcResponse
     {
+        return RpcResponse::createSuccess($product);
     }
+}
 ```
 
-### Calling action
+
+#### Create server client
+
+Create client service
+
+```yaml
+    rpc.client.product:
+        class: RpcBundle\Service\RpcClient
+        arguments:
+            - '@old_sound_rabbit_mq.products_client_rpc'
+            - 'product_server'
+```
+
+Call server action
 
 ```php
-    $actionCaller->call($request->getAction(), $server, $request->getData());
+<?php
+
+use RpcBundle\DataType\RpcRequest;
+use RpcBundle\DataType\RpcResponse;
+use RpcBundle\Service\RpcClientInterface;
+
+/**
+ * Class ProductService.
+ */
+class ProductService 
+{
+    
+    /**
+     * @var RpcClientInterface
+     */
+    private $productClient;
+    
+    /**
+     * @param array $data
+     *
+     * @return RpcResponse
+     */
+    public function createProduct(array $data = []) : RpcResponse
+    {
+        $request = new RpcRequest('create-product', $data);
+
+        return  $this->productClient->call($request);
+    }
+}
 ```
